@@ -617,8 +617,8 @@ def color_label(val):
         return "color:#F57F17; font-weight:600"
     return "color:#2E7D32"
 
-styled_table = table_df.style.applymap(color_surge, subset=["급등점수"])
-styled_table = styled_table.applymap(color_label, subset=["예측"])
+styled_table = table_df.style.map(color_surge, subset=["급등점수"])
+styled_table = styled_table.map(color_label, subset=["예측"])
 
 st.dataframe(
     styled_table,
