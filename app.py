@@ -407,14 +407,25 @@ with st.sidebar:
 
     st.divider()
 
-    st.markdown("""
-    **📌 Surge Score 가중치**
-    - 거래량 30%  
-    - 모멘텀 25%  
-    - 추세/MA 20%  
-    - RSI·MACD 15%  
-    - 수급 10%
-    """)
+    if use_screener:
+        st.markdown("""
+        **📌 Surge Score 가중치 (v2)**
+        - 수급 35%  
+        - 모멘텀 25%  
+        - 추세/MA 20%  
+        - 오실레이터 10%  
+        - 거래량 5%  
+        - 뉴스/공시 5%
+        """)
+    else:
+        st.markdown("""
+        **📌 Surge Score 가중치 (v1)**
+        - 거래량 30%  
+        - 모멘텀 25%  
+        - 추세/MA 20%  
+        - RSI·MACD 15%  
+        - 수급 10%
+        """)
 
     st.divider()
     st.caption("⚠️ **면책**: 본 도구는 교육·참고용이며 투자 조언이 아닙니다. 모든 투자 결정은 본인 책임입니다.")
@@ -429,7 +440,7 @@ if use_screener:
 else:
     st.title("📈 코스피 거래량 상위 분석 대시보드")
 
-st.caption(f"매일 사용 가능 · 분석일 선택 즉시 재계산 · {mode_label} 모드")
+st.caption(f"매일 사용 가능 · 분석일 선택 즉시 재계산 · {mode_label} 모드  |  v1/v2 하이브리드 지원")
 
 # ============================================
 # 데이터 로드 (캐시 적용)
