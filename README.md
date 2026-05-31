@@ -1,283 +1,70 @@
-# 📈 코스피 거래량 상위 30종목 분석 대시보드
+# 📈 코스피 수급·모멘턴 스크리너
 
-**매일 아침 5분이면 끝나는 실전형 Streamlit 앱** — 오늘/과거 영업일 자유 선택 + 거래량 폭발 종목 Top30 자동 추출 + **익일 급등 가능성 예측** (기술적 지표  + 수급 데이터 기반)
+**수급 + 모멘턴 기반의 실전형 코스피 갑등 후보 탐색 도구**
 
-> 한국 개인투자자를 위해 설계된 **반복 일일 사용 특화** 도구입니다.  
-> 사이드바에서 날짜만 바꾸면 과거 1~2년 어느 영업일이든 즉시 분석 가능.
+이 앱은 기존의 단순한 거래량 상위 종목 스캐너를 넘어, **외국인/기관 수급 + 기술적 모멘턴**을 종합적으로 분석하여 더 질 높은 갑등 후보를 찾아줍니다.
 
----
+- **v1 모드**: 기존 거래량 Top30 기반 (레거시)
+- **v2 모드**: 수급 + 모멘턴 기반 동적 Screener (추천)
+- **실제 백테스트**: 최근 기간 동안의 실제 성과(IC, 적중률, Sharpe) 확인 가능
+- **다기간 예축**: T+1 / T+2 / T+3 신뢰도 분리 표시
 
-## 🚀 빠른 시작 (Windows PowerShell)
+> 한국 시장의 특성을 반영한 실전형 분석 도구입니다.
 
-### 1회성 초기 설정
+## 🚀 기능 개요
 
-```powershell
-# 프로젝트 폴더로 이동
-cd "C:\Users\Administrator\.grok\worktrees\kwon\danta"
+| 기능 | 설명 |
+|------|------|
+| 후보 선정 방식 | 거래량 Top30 (v1) / 수급+모멘턴 Screener (v2) 토글 지원 |
+| Surge Score | v2 가중치 적용 (수급 35% 중심) |
+| 다기간 신뢰도 | T+1 / T+2 / T+3 별도 계산 |
+| 실제 백테스트 | 최근 40~60일 간 실제 성과 지표 (IC, 적중률, Sharpe) 확인 가능 |
+| 데이터 | pykrx 주 사용 + yfinance 대체 |
 
-# 1. 가상환경 생성 (권장)
-python -m venv .venv
+## 👨‍💻 로컬 실행
 
-# 2. 가상환경 활성화
-.\.venv\Scripts\Activate.ps1
-
-# 3. 의존성 설치 (최초 1회, 2~3분 소요)
+```bash
+git clone https://github.com/infora/kospi-screener.git
+cd kospi-screener
 pip install -r requirements.txt
-```
-
-### 매일 실행 방법 (2가지)
-
-#### 방법 A. Streamlit 대시보드 (추천 - 시각화 확인용)
-```powershell
-# 가상환경 활성화 (매 실행 시)
-.\.venv\Scripts\Activate.ps1
-
-# 대시보드 실행
 streamlit run app.py
 ```
 
-브라우저가 자동으로 열립니다.  
-사이드바에서 **"분석 기준일"** 달력 또는 직접 입력으로 원하는 영업일을 선택하세요. (예: 2026-05-28)
-
-#### 방법 B. 검증 스크립트 (매일 아침 데이터/예측 파이프라인 헬스체크용)
-```powershell
-.\.venv\Scripts\Activate.ps1
-
-# 오늘(최근 영업일) 기준 검증
-python -m scripts.validate --date latest
-
-# 특정 과거일 검증 (예: 2026년 5월 28일)
-python -m scripts.validate --date 20260528
-
-# 상세 로그 + 스냅샷 출력 (파일로 저장 가능)
-python -m scripts.validate --date 20260528 --verbose --print-snapshot > snapshot-20260528.json
-```
-
-**검증 스크립트 출력 예시 (현재 스켈레톤 상태)**
-- ✅ helpers / models 동작 확인
-- ⚠️ fetcher / predictor : STUB (추후 Subagent 구현 완료 시 PASS로 전환)
-- Top5 미리보기 (더미 데이터)
-
----
-
-## 📅 매일 추천 워크플로우 (Daily Routine)
-
-1. **아침 8:40~8:50** — `python -m scripts.validate --date latest` 실행  
-   (인터넷 연결 확인 + 오늘 데이터 수집 가능 여부 + 기본 파이프라인 체크. 5초 이내)
-
-2. **이상 없으면** `streamlit run app.py` 실행 → 사이드바에서 "오늘(최근 영업일)로 이동" 버튼 클릭
-
-3. **High 후보 3~5개** 집중 분석 (거래량비 2.5x↑ + 외국인 순매수 + RSI 55~70 구간 등)
-
-4. **원할 때 과거 복기** — 2026-05-28 같은 특정일을 입력해 "그날 이후 실제로 어떻게 움직였는지" 패턴 학습
-
-5. **스냅샷 보관** (선택) — `--print-snapshot` 결과를 날짜별 폴더에 저장해 예측 정확도 추적
-
----
-
-## 🔬 익일 급등 예측 동작 원리 (Methodology)
-
-### 핵심 아이디어
-**"거래량이 급증하면서 동시에 수급(외국인/기관)과 기술적 모멘텀이 동시에 유리한 종목"**이 다음 영업일에 단기 급등할 확률이 높다는 실전 관찰을 정량화.
-
-### 분석 대상
-- pykrx `get_market_cap(...)` → KOSPI 시장 거래량 상위 종목 자동 추출
-- ETF / ETN / 레버리지 / 인버스 상품 **완전 제외** (utils/helpers.py의 `ETF_KEYWORDS`)
-- 정확히 **30개 일반주**만 대상
-
-### 추출되는 피처 (StockFeatures)
-| 카테고리       | 주요 피처                              | 출처                  |
-|----------------|----------------------------------------|-----------------------|
-| 거래량         | volume_ratio (20일 평균 대비), volume_spike/explosion | pykrx OHLCV + 커스텀 |
-| 모멘텀         | 5일/10일 수익률, 추세강도(trend_strength) | OHLCV 계산            |
-| 추세           | MA5/20/60 위/아래 위치, 가격 위치      | pandas_ta             |
-| 오실레이터     | RSI(14), MACD (signal/hist)            | pandas_ta             |
-| 수급           | 외국인 순매수금액, 기관 순매수금액, netbuy_score | pykrx investor data   |
-
-### Surge Score 계산 공식 (predictor.py)
-```
-surge_score = 
-    volume_component      * 0.30 +
-    momentum_component    * 0.25 +
-    trend_component       * 0.20 +
-    oscillator_component  * 0.15 +
-    supply_demand_component * 0.10
-```
-
-- 각 컴포넌트는 0~100 스케일 정규화 후 가중합
-- **High** : 70점 이상 (강력 후보)
-- **Medium** : 50~69점
-- **Low** : 49점 이하
-
-이유 태그(reason_tags)도 자동 생성되어 "거래량 폭발 + 외국인 3일 연속 순매수 + RSI 62 양호" 같은 자연어 설명 제공.
-
-### 예측 대상 기간
-- **분석 기준일** (사용자가 선택한 날) 의 데이터를 기반으로
-- **다음 영업일(익일)** 의 급등 가능성을 예측
-- get_next_trading_day() 로 공휴일 무시하고 단순 +1 영업일 계산 (실제 pykrx 보정 예정)
-
----
-
-## 💡 매일 사용 팁
-
-- **최적 실행 시간**: 한국 장 마감 후 ~ 익일 새벽 2시 사이 (pykrx 데이터 반영 시점)
-- **High 후보 필터링**: 사이드바 "High 후보(70점↑)만 보기" + 최소 거래량 비율 1.8x 이상 조합 추천
-- **과거 패턴 학습**: 중요한 이벤트일(예: 5월 28일) 선택 → Top5 종목들의 3~5일 후 실제 움직임 직접 확인
-- **인터넷 필수**: pykrx는 실시간 크롤링 기반. VPN/방화벽 환경에서는 yfinance fallback이 동작할 수 있음
-- **가상환경 매번 활성화 잊지 말기**: PowerShell 세션이 새로 열릴 때마다 `.\.venv\Scripts\Activate.ps1` 실행
-- **스냅샷으로 정확도 추적**: 매일 `--print-snapshot` 결과를 `snapshots/` 폴더에 모아두면 나중에 "예측이 실제로 잘 맞았는지" 백테스트 느낌으로 복기 가능
-- **2026년 날짜 주의**: 현재 날짜가 2026년이므로 `datetime.now()` 기반 latest는 미래가 아닌 최근 과거 영업일을 반환하도록 내부 로직이 설계되어 있음
-- **모바일 확인**: Streamlit을 8501 포트로 열어두면 집/회사 PC에서 동일 네트워크 스마트폰으로도 접속 가능
-
----
-
-## 🛠 기술 스택
-
-- **데이터**: pykrx (최우선), yfinance (보조)
-- **지표 계산**: pandas_ta (numba 가속) + 순수 pandas
-- **모델/피처**: dataclasses (StockFeatures, AnalysisResult)
-- **UI**: Streamlit + Plotly (캔들 + MA + Volume + RSI + MACD 4단 차트 예정)
-- **날짜 처리**: python-dateutil + 수동 영업일 로직
-- **검증**: 자체 `scripts/validate.py` (서브프로세스 없이 단독 실행)
-
-### 프로젝트 구조 (간략)
-```
-.
-├── app.py                  # Streamlit 메인 (사이드바 날짜 선택 + 결과 표시)
-├── requirements.txt
-├── data/
-│   └── fetcher.py          # pykrx Top30 + OHLCV + 수급 수집 (Subagent 1)
-├── analysis/
-│   ├── indicators.py       # pandas_ta 지표 일괄 계산 (Subagent 2)
-│   ├── analyzer.py         # 단일/배치 종목 피처 생성 (Subagent 3+4)
-│   └── predictor.py        # Surge Score + 라벨링 + Top5 (Subagent 5)
-├── ui/
-│   └── charts.py           # Plotly 고급 차트 (Subagent 5)
-├── utils/
-│   ├── models.py           # StockFeatures / AnalysisResult
-│   └── helpers.py          # 날짜 포맷, ETF 필터, next_trading_day 등
-├── scripts/
-│   ├── __init__.py
-│   └── validate.py         # ★ 일일 검증 + 스냅샷 헬퍼 (Subagent 6)
-└── .streamlit/config.toml  # 다크 테마 + 포트 8501
-```
-
----
-
-## 📜 Subagent 병렬 개발 이력
-
-이 프로젝트는 Grok의 **6개 Subagent**가 완전 격리된 worktree에서 병렬로 개발한 결과물입니다.
-
-- Subagent 1: 데이터 수집 (fetcher)
-- Subagent 2: 기술적 지표 (indicators)
-- Subagent 3+4: 분석 엔진 (analyzer)
-- Subagent 5: 예측 + UI (predictor + charts + app)
-- **Subagent 6 (현재)**: 검증 스크립트, README 대폭 확장, requirements 정리, 사용성 폴리싱
-
-현재 일부 핵심 함수는 `NotImplementedError` (스켈레톤) 상태이며, 순차적으로 완성될 예정입니다. 검증 스크립트와 헬퍼, 문서는 이미 **매일 실사용 가능** 수준으로 완성되어 있습니다.
-
----
-
-## ⚠️ Known Limitations (현재 시점)
-
-1. **데이터 수집/분석 파이프라인이 미완성** — `data/fetcher.py`, `analysis/*.py` 대부분이 스텁. 실제 pykrx 호출 및 Surge Score 계산은 향후 구현 후 동작.
-2. **예측 정확도 미검증** — 현재는 더미 데이터 기반. 실제 데이터 들어온 후 최소 30~50거래일 백테스트 필요.
-3. **공휴일/장중 데이터 미고려** — get_next_trading_day는 단순 주말 제외. 실제 한국 증시 휴장일(설/추석/선거 등)은 pykrx 보정 필요.
-4. **2026년 환경** — 미래 날짜 기준 테스트 환경. 실제 운영 시 `get_latest_trading_day` 로직 보강 권장.
-5. **인터넷 + pykrx 안정성** — 네트워크 문제 시 fallback 미완성. requests timeout, HTML 구조 변경에 취약할 수 있음.
-6. **투자 신호가 아님** — High 라벨이 나와도 실제 매수 추천이 아닙니다.
-
----
-
-## 📋 면책 조항 (Disclaimer)
-
-**이 도구는 교육·참고·연구 목적으로만 제공됩니다.**
-
-- 어떠한 경우에도 **투자 조언, 매매 권유, 자산운용 제안**이 아닙니다.
-- 사용자가 이 프로그램의 출력물을 바탕으로 행한 모든 투자 결정과 그 결과(손실 포함)는 **전적으로 사용자 본인의 책임**입니다.
-- 저자 및 기여자는 데이터 오류, 예측 실패, 프로그램 버그로 인한 직·간접 손해에 대해 법적 책임을 지지 않습니다.
-- 한국 금융당국(금융위원회, 금감원) 관련 법규를 준수하시기 바랍니다.
-
-**투자는 본인의 판단과 책임 하에 신중하게 하십시오.**
-
----
-
-## 📌 향후 개선 방향 (참고)
-
-- 실제 pykrx 데이터 연동 완료 후 실시간/야간 배치 자동화
-- 예측 정확도 백테스트 리포트 자동 생성
-- Telegram/Discord 알림 봇 연동 (High 후보 자동 푸시)
-- Naver 증권 커뮤니티 언급량 추가 피처 (선택)
-
----
-
-*Parallel Subagent Workflow (Plan Mode → 6 isolated worktrees)로 생성됨*  
-*Subagent 6 (Polish, Validation, Documentation) — 2026-05-27*
-
-**Ready for daily repeated use by Korean users.**
-
----
+사이드바에서 **"후보 선정 방식"** 라디오 버튼으로 v1 / v2 모드를 자유롭게 전환할 수 있습니다.
 
 ## 🚀 GitHub + Streamlit Cloud 배포 가이드
 
-### 1. GitHub 새 저장소 만들기
+### 1. GitHub 저장소 준비
 
-**방법 A: GitHub 웹에서 생성 (추천)**
-1. https://github.com/new 접속
-2. Repository name: `kospi-screener` (또는 원하는 이름)
-3. Public 또는 Private 선택
-4. **Add a README file** 체크 해제 (이미 있으므로)
-5. **Add .gitignore** → None 선택
-6. **Choose a license** → 원하는 라이선스 (추천: MIT)
-7. **Create repository** 클릭
-
-**방법 B: GitHub CLI 사용**
 ```bash
-gh repo create kospi-screener --public --source=. --remote=origin --push
+git clone https://github.com/infora/kospi-screener.git
+cd kospi-screener
 ```
 
-### 2. 로컬에서 Git 초기화 및 Push (웹에서 repo 만든 경우)
+### 2. Streamlit Cloud에 배포하기
 
-```powershell
-cd "C:\Users\Administrator\.grok\worktrees\kwon\danta"
-
-# 1. Git 초기화 (아직 안 되어 있다면)
-git init
-
-# 2. main 브랜치로 변경
-git branch -M main
-
-# 3. 모든 파일 추가
-git add .
-
-# 4. 첫 커밋
-git commit -m "Initial commit: KOSPI 수급·모멘텀 스크리너 v2"
-
-# 5. 원격 저장소 연결 (YOUR_USERNAME 부분을 실제 GitHub 사용자명으로 변경)
-git remote add origin https://github.com/YOUR_USERNAME/kospi-screener.git
-
-# 6. Push
-git push -u origin main
-```
-
-### 3. Streamlit Cloud에 배포하기
-
-1. https://share.streamlit.io 접속 후 로그인 (GitHub 계정)
-2. **New app** → **Deploy an app** 클릭
-3. Repository: 방금 만든 저장소 선택
+1. [https://share.streamlit.io](https://share.streamlit.io) 접속 후 GitHub 로그인
+2. **Deploy an app** 클릭
+3. Repository: `infora/kospi-screener` 선택
 4. Branch: `main`
 5. Main file path: `app.py`
 6. **Deploy!** 클릭
 
-배포 후 몇 분 기다리면 `https://your-app-name.streamlit.app` 주소로 앱이 올라갑니다.
+배포 후 앱 주소: `https://your-app-name.streamlit.app`
 
-**권장 설정**
-- Python version: 3.12 (프로젝트에 `runtime.txt` 포함되어 있음)
-- Secrets가 필요한 경우 (현재는 없음) Settings → Secrets에서 추가
+## ⚙️ 기술 스택
 
-### 4. 배포 후 추천 작업
+- Python 3.12
+- Streamlit + Plotly
+- pykrx (수급 데이터)
+- pandas_ta, scipy (IC 계산)
 
-- README.md에 배포된 앱 링크 추가
-- Streamlit Cloud에서 "Reboot app"으로 최신 코드 반영 테스트
-- Custom domain 연결 (선택)
+## ⚠️ 주의사항
 
+- 이 도구는 **투자 조언이 아닙니다**. 모든 결정은 자신의 책임 하에 있습니다.
+- pykrx 데이터는 외부 스크래핑에 의존하므로, 실제 운영 시 안정성 문제가 발생할 수 있습니다.
+- 백테스트 결과는 과거 성과이며, 미래 성과를 보장하지 않습니다.
+
+---
+
+*Parallel Subagent Workflow로 개발된 프로젝트*
