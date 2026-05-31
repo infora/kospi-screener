@@ -1,0 +1,19 @@
+[theme]
+primaryColor = "#1f77b4"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#fafafa"
+font = "sans serif"
+
+[server]
+# Streamlit Cloud recommended settings
+headless = true
+port = 8501
+
+[runner]
+# Faster reruns on code change
+fastReruns = true
+
+[browser]
+# Gather less usage stats on cloud
+gatherUsageStats = false
